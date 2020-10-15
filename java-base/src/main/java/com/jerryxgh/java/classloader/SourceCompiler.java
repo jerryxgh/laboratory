@@ -11,12 +11,11 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.StringWriter;
-import java.lang.reflect.Method;
-import java.lang.reflect.Modifier;
 import java.net.URI;
 import java.security.SecureClassLoader;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -24,55 +23,41 @@ import java.util.Map;
  * per class.
  */
 public class SourceCompiler {
-    ClassLoader classLoader = new ClassLoader(getClass().getClassLoader()) {
-        byte[] data = null;
-
-        @Override
-        public Class<?> findClass(String name) throws ClassNotFoundException {
-            return defineClass(name, data, 0, data.length);
-        }
-    };
-
-    public Method getMethod(Class<?> clazz) throws ClassNotFoundException {
-        Method[] methods = clazz.getDeclaredMethods();
-        for (Method m : methods) {
-            int modifiers = m.getModifiers();
-            if (Modifier.isPublic(modifiers) && Modifier.isStatic(modifiers)) {
-                String name = m.getName();
-                if (!name.startsWith("_") && !m.getName().equals("main")) {
-                    return m;
-                }
-            }
-        }
-        return null;
-    }
+//    ClassLoader classLoader = new ClassLoader(getClass().getClassLoader()) {
+//        byte[] data = null;
+//
+//        @Override
+//        public Class<?> findClass(String name) throws ClassNotFoundException {
+//            return defineClass(name, data, 0, data.length);
+//        }
+//    };
 
     /**
      * Compile using the standard java compiler.
      *
-     * @param packageName the package name
-     * @param className the class name
-     * @param source the source code
+     * @param stringJavaFileObjectList 字符串形式的Java源文件列表
      * @return the class
      */
-    Class<?> javaxToolsJavac(String packageName, String className, String source) throws ClassNotFoundException {
+    public static Map<String, JavaClassObject> javaxToolsJavac(List<StringJavaFileObject> stringJavaFileObjectList) throws ClassNotFoundException {
         JavaCompiler javaCompiler = ToolProvider.getSystemJavaCompiler();
-        String fullClassName = packageName + "." + className;
         StringWriter writer = new StringWriter();
-        JavaFileManager fileManager = new ClassFileManager(javaCompiler.getStandardFileManager(null, null, null));
+        ClassFileManager fileManager = new ClassFileManager(javaCompiler.getStandardFileManager(null, null, null));
 
         ArrayList<JavaFileObject> compilationUnits = new ArrayList<>();
-        compilationUnits.add(new StringJavaFileObject(fullClassName, source));
-        javaCompiler.getTask(writer, fileManager, null, null,
+        compilationUnits.addAll(stringJavaFileObjectList);
+        Boolean compileSucc = javaCompiler.getTask(writer, fileManager, null, null,
                     null, compilationUnits).call();
         String output = writer.toString();
-        return fileManager.getClassLoader(null).loadClass(fullClassName);
+//        System.out.println(compileSucc + "," + output);
+//        return fileManager.getClassLoader(null).loadClass(fullClassName);
+
+        return fileManager.getClassObjects();
     }
 
     /**
      * An in-memory java source file object.
      */
-    static class StringJavaFileObject extends SimpleJavaFileObject {
+    public static class StringJavaFileObject extends SimpleJavaFileObject {
 
         private final String sourceCode;
 
@@ -86,14 +71,12 @@ public class SourceCompiler {
         public CharSequence getCharContent(boolean ignoreEncodingErrors) {
             return sourceCode;
         }
-
     }
 
     /**
      * An in-memory java class object.
      */
-    static class JavaClassObject extends SimpleJavaFileObject {
-
+    public static class JavaClassObject extends SimpleJavaFileObject {
         private final ByteArrayOutputStream out = new ByteArrayOutputStream();
 
         public JavaClassObject(String name, Kind kind) {
@@ -115,38 +98,28 @@ public class SourceCompiler {
      * An in-memory class file manager.
      */
     static class ClassFileManager extends ForwardingJavaFileManager<StandardJavaFileManager> {
-
         /**
          * We use map because there can be nested, anonymous etc classes.
          */
-        Map<String, JavaClassObject> classObjectsByName = new HashMap<>();
-
-        private SecureClassLoader classLoader = new SecureClassLoader() {
-
-            @Override
-            protected Class<?> findClass(String name)
-                    throws ClassNotFoundException {
-                byte[] bytes = classObjectsByName.get(name).getBytes();
-                return super.defineClass(name, bytes, 0,
-                        bytes.length);
-            }
-        };
+        private Map<String, JavaClassObject> classObjectsByName = new HashMap<>();
 
         public ClassFileManager(StandardJavaFileManager standardManager) {
             super(standardManager);
         }
 
-        @Override
-        public ClassLoader getClassLoader(Location location) {
-            return this.classLoader;
+        public JavaClassObject getJavaClassObject(String name) {
+            return classObjectsByName.get(name);
         }
 
         @Override
-        public JavaFileObject getJavaFileForOutput(Location location,
-                                                   String className, Kind kind, FileObject sibling) throws IOException {
+        public JavaFileObject getJavaFileForOutput(Location location, String className, Kind kind, FileObject sibling) {
             JavaClassObject classObject = new JavaClassObject(className, kind);
             classObjectsByName.put(className, classObject);
             return classObject;
+        }
+
+        public Map<String, JavaClassObject> getClassObjects() {
+            return classObjectsByName;
         }
     }
 }

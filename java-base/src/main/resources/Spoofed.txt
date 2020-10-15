@@ -1,0 +1,7 @@
+package com.jerryxgh.java.classloader;
+
+public class Spoofed {
+    static {
+        System.out.println("load class Spoofed");
+    }
+}

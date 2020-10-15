@@ -1,0 +1,11 @@
+package com.jerryxgh.java.classloader;
+
+public class Delegated {
+    static {
+        System.out.println("load class Delegated");
+    }
+
+    public static Spoofed g() {
+        return new Spoofed();
+    }
+}
