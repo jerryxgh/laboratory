@@ -6,7 +6,7 @@ public class Arithmetic {
         Arithmetic arithmetic = new Arithmetic();
         System.out.println(arithmetic.compute("(9/1)*2+(1+1)*4+(1+1+1)3*4"));
         arithmetic.index = 0;
-        System.out.println(arithmetic.compute("(1+4)*(5+6)"));
+        System.out.println(arithmetic.compute("((1+4)*(5+1)+1)*2"));
     }
 
     private int index = 0;
