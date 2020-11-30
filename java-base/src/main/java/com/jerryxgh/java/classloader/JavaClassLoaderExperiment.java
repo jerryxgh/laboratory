@@ -81,7 +81,8 @@ public class JavaClassLoaderExperiment {
 //        System.out.println(classC.getSimpleName());
 //        System.out.println(classC.getTypeName());
         Object c = classC.newInstance();
-        classC.getMethod("f").invoke(c);
+        classC.getMethod("f");
+//        classC.getMethod("f").invoke(c);
 //        new C().f();
 //        new C().f();
 //        System.out.println(C.class.getClassLoader());
